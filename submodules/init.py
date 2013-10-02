@@ -27,11 +27,32 @@
 import os
 import sys
 import subprocess
+import argparse
+
+ap = argparse.ArgumentParser(description="Submodule Management.")
+
+#
+# The root of the repository.
+# We assume by default that this script resides in 
+# the $(ROOT)/submodules directory. 
+#
+root_default = os.path.abspath("%s/../" % os.path.dirname(__file__))
+
+ap.add_argument("--root", help="The root of the respository.", 
+                default=root_default)
+
+ap.add_argument("--update", help="Update the named submodules.", 
+                nargs='+', default=None, metavar='SUBMODULE')
+
+ap.add_argument("--list", help="List all submodules.", 
+                action='store_true')
+
+ops = ap.parse_args(); 
 
 # Move to the root of the repository
-root = sys.argv[1]
-os.chdir(root)
+os.chdir(ops.root)
 
+# Get the status of all submodules
 submodule_status = {}
 try:
     for entry in subprocess.check_output(['git', 'submodule', 'status']).split("\n"):
@@ -42,16 +63,23 @@ except Exception as e:
     print repr(e)
     raise
 
-for (module, status) in submodule_status.iteritems():
-    if status[0] == '-':
-        # This submodule has not yet been updated
-        print "Updating %s" % module
-        if subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive', 'submodules/%s' % module]) != 0:
-            print "git error updating module '%s'." % (module, switchlight_root, module)
-            sys.exit(1)
+if ops.list:
+    for (module, status) in submodule_status.iteritems():
+        print module
 
-print
-print "submodules:ok."
+if ops.update:
+    for (module, status) in submodule_status.iteritems():
+        if module in ops.update or "all" in ops.update:
+            if status[0] == '-':
+                # This submodule has not yet been updated
+                print "Updating submodule %s" % module
+                if subprocess.check_call(['git', 'submodule', 'update', '--init', '--recursive', 'submodules/%s' % module]) != 0:
+                    print "git error updating module '%s'." % (module, switchlight_root, module)
+                    sys.exit(1)
+            else:
+                print "Submodule %s is already checked out." % module
+    print "submodules:ok."
+
 
 
 

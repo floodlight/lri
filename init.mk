@@ -23,25 +23,61 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 #
-# Initialize local submodules if necessary 
+# Resolve submodule dependencies. 
 #
-ifndef SUBMODULES
-
-SUBMODULES := $(ROOT)/submodules
-
-SUBMODULE_UPDATE_RESULT := $(shell python $(SUBMODULES)/init.py $(ROOT))
-
-ifneq ($(lastword $(SUBMODULE_UPDATE_RESULT)),submodules:ok.)
-$(info Local submodule update failed.)
-$(info Result:)
-$(info $(SUBMODULE_UPDATE_RESULT))
-$(error Abort)
+ifndef SUBMODULE_INFRA
+  ifdef SUBMODULES
+    SUBMODULE_INFRA := $(SUBMODULES)/infra
+  else
+    SUBMODULE_INFRA := $(ROOT)/submodules/infra
+    SUBMODULES_LOCAL += infra
+  endif
 endif
 
+ifndef SUBMODULE_BIGCODE
+  ifdef SUBMODULES
+    SUBMODULE_BIGCODE := $(SUBMODULES)/bigcode
+  else
+    SUBMODULE_BIGCODE := $(ROOT)/submodules/bigcode
+    SUBMODULES_LOCAL += bigcode
+  endif
 endif
 
-export SUBMODULES
-export BUILDER := $(SUBMODULES)/infra/builder/unix
+ifndef SUBMODULE_INDIGO
+  ifdef SUBMODULES
+    SUBMODULE_INDIGO := $(SUBMODULES)/indigo
+  else
+    SUBMODULE_INDIGO := $(ROOT)/submodules/indigo
+    SUBMODULES_LOCAL += indigo
+  endif
+endif
+
+
+ifdef SUBMODULES_LOCAL
+  SUBMODULES_LOCAL_UPDATE := $(shell python $(ROOT)/submodules/init.py --update $(SUBMODULES_LOCAL))
+  ifneq ($(lastword $(SUBMODULES_LOCAL_UPDATE)),submodules:ok.)
+    $(info Local submodule update failed.)
+    $(info Result:)
+    $(info $(SUBMODULES_LOCAL_UPDATE))
+    $(error Abort)
+  endif
+endif
+
+export SUBMODULE_INFRA
+export SUBMODULE_BIGCODE
+export SUBMODULE_INDIGO
+export BUILDER := $(SUBMODULE_INFRA)/builder/unix
+
+MODULE_DIRS := $(ROOT)/modules $(SUBMODULE_INFRA)/modules $(SUBMODULE_BIGCODE)/modules $(SUBMODULE_INDIGO)/modules
+
+.show-submodules:
+	@echo infra @ $(SUBMODULE_INFRA)
+	@echo bigcode @ $(SUBMODULE_BIGCODE)
+	@echo indigo @ $(SUBMODULE_INDIGO)
+
+
+
+
 
 
 
