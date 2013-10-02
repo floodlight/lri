@@ -29,11 +29,6 @@
 #endif
 
 
-#ifndef FORWARDING_CONFIG_INCLUDE_UCLI
-#define FORWARDING_CONFIG_INCLUDE_UCLI 1
-#endif
-
-
 
 /* <auto.start.cdefs(FORWARDING_CONFIG_HEADER).header> */
 #include <AIM/aim.h>
