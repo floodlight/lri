@@ -1,2 +1,2 @@
-stage-lri
-=========
+Indigo Linux Reference Implementation
+=====================================
