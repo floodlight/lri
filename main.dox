@@ -1,0 +1,10 @@
+/**
+\mainpage
+
+The LRI Repository. 
+
+This repository contains the source code and sample application for the Indigo Linux Reference Implementation. 
+
+This repository depends upon the infra, indigo, and bigcode repositories. 
+
+*/

@@ -71,8 +71,7 @@ static ind_port_config_t my_config[1];
 /** \brief Per-port data */
 struct of_port {
     char     ifname[128];      /**< Name of port's VPI or Linux network interface */
-    of_mac_addr_t mac;
-
+    of_mac_addr_t mac;          /**< MAC */
     vpi_t    vpi;              /**< VPI handle; NULL = not in use */
     uint32_t config;            /**< OpenFlow's port config,
                                    from of_port_mod */

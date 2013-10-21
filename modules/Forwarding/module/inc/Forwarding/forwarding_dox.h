@@ -21,7 +21,7 @@
 #define __FORWARDING_DOX_H__
 
 /**
- * @defgroup Forwarding
+ * @defgroup forwarding Forwarding
  *
  * @{
  * @defgroup indigo-Forwarding Public Interface
