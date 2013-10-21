@@ -3,7 +3,7 @@
 	url = git@github.com:floodlight/infra
 [submodule "submodules/indigo"]
 	path = submodules/indigo
-	url = git@github.com:floodlight/xindigo
+	url = git@github.com:floodlight/indigo
 [submodule "submodules/bigcode"]
 	path = submodules/bigcode
 	url = git@github.com:floodlight/bigcode
