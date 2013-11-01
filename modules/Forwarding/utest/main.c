@@ -61,12 +61,17 @@ struct {
 
 indigo_error_t indigo_core_packet_in(of_packet_in_t *of_packet_in)
 {
+    of_octets_t octets;
+
     pkt_in_info->calledf = TRUE;
     ++pkt_in_info->called_cnt;
     of_packet_in_in_port_get(of_packet_in, &pkt_in_info->in_port);
-    of_packet_in_data_get(of_packet_in, &pkt_in_info->of_octets);
+    of_packet_in_data_get(of_packet_in, &octets);
     of_packet_in_total_len_get(of_packet_in, &pkt_in_info->total_len);
     of_packet_in_reason_get(of_packet_in, &pkt_in_info->reason);
+
+    pkt_in_info->of_octets.bytes = octets.bytes;
+    pkt_in_info->of_octets.data = aim_memdup(octets.data, octets.bytes);
 
     of_packet_in_delete(of_packet_in);
 
@@ -88,6 +93,7 @@ pkt_in_chk(of_port_no_t in_port, uint8_t *data, unsigned len, unsigned reason)
     TEST_ASSERT(pkt_in_info->of_octets.bytes == len);
     TEST_ASSERT(pkt_in_info->total_len == len);
     TEST_ASSERT(pkt_in_info->reason == reason);
+    aim_free(pkt_in_info->of_octets.data);
 }
 
 
