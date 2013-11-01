@@ -47,140 +47,6 @@ ind_fwd_config_t ind_fwd_config[1] = {{
         10                          /* max_flows */
     }};
 
-struct callback_info {
-    unsigned        calledf;
-    unsigned        called_cnt;
-    indigo_error_t  result;
-    indigo_cookie_t callback_cookie;
-};
-
-void
-callback_arm(struct callback_info *callback_info)
-{
-    callback_info->calledf = FALSE;
-    callback_info->result = -1;
-    callback_info->callback_cookie = INDIGO_COOKIE_NULL;
-}
-
-void
-callback_record(struct callback_info *callback_info,
-                indigo_error_t       result,
-                indigo_cookie_t      callback_cookie)
-{
-    callback_info->calledf         = TRUE;
-    callback_info->result          = result;
-    callback_info->callback_cookie = callback_cookie;
-}
-
-void
-callback_chk(struct callback_info *callback_info,
-             indigo_cookie_t      callback_cookie)
-{
-    TEST_ASSERT(callback_info->calledf);
-    TEST_ASSERT(callback_info->result == INDIGO_ERROR_NONE);
-    TEST_ASSERT(callback_info->callback_cookie == callback_cookie);
-}
-
-
-/* Fake state manager callback functions */
-
-struct callback_info indigo_state_manager_flow_create_callback_info[1];
-
-static indigo_cookie_t created_flow_id;
-
-void
-indigo_core_flow_create_callback(indigo_error_t result,
-                                 indigo_cookie_t flow_id,
-                                 uint8_t table_id,
-                                 indigo_cookie_t callback_cookie)
-{
-    callback_record(indigo_state_manager_flow_create_callback_info,
-                    result, callback_cookie);
-    created_flow_id = flow_id;
-}
-
-struct callback_info indigo_state_manager_flow_modify_callback_info[1];
-
-
-void
-indigo_core_flow_modify_callback(indigo_error_t result,
-                                 indigo_fi_flow_stats_t *flow_stats,
-                                 indigo_cookie_t callback_cookie)
-{
-    callback_record(indigo_state_manager_flow_modify_callback_info, result,
-                    callback_cookie);
-}
-
-struct callback_info indigo_state_manager_flow_delete_callback_info[1];
-
-static int last_packets;
-static int last_bytes;
-
-
-void
-indigo_core_flow_delete_callback(indigo_error_t result,
-                                 indigo_fi_flow_stats_t *flow_stats,
-                                 indigo_cookie_t callback_cookie)
-{
-    callback_record(indigo_state_manager_flow_delete_callback_info,
-                    result, callback_cookie);
-    last_packets = flow_stats->packets;
-    last_bytes = flow_stats->bytes;
-}
-
-struct callback_info indigo_core_flow_stats_get_callback_info[1];
-
-void indigo_core_flow_stats_get_callback(
-    indigo_error_t result,
-    indigo_fi_flow_stats_t *flow_stats,
-    indigo_cookie_t callback_cookie)
-{
-    callback_record(indigo_core_flow_stats_get_callback_info, result,
-                    callback_cookie);
-    last_packets = flow_stats->packets;
-    last_bytes = flow_stats->bytes;
-}
-
-struct callback_info indigo_core_table_stats_get_callback_info[1];
-
-static int last_active_count;
-static int last_lookup_count;
-static int last_matched_count;
-
-void
-indigo_core_table_stats_get_callback(indigo_error_t result,
-                                     of_table_stats_reply_t *table_stats_reply,
-                                     indigo_cookie_t callback_cookie)
-{
-    of_list_table_stats_entry_t   list;
-    of_table_stats_entry_t        entry;
-    unsigned                      n;
-    int                           rv;
-    uint64_t val64;
-    uint32_t val32;
-
-    callback_record(indigo_core_table_stats_get_callback_info, result,
-                    callback_cookie);
-
-    of_table_stats_reply_entries_bind(table_stats_reply, &list);
-
-    n = 0;
-    OF_LIST_TABLE_STATS_ENTRY_ITER(&list, &entry, rv) {
-        of_table_stats_entry_max_entries_get(&entry, &val32);
-        TEST_ASSERT(val32 == ind_fwd_config->max_flows);
-        of_table_stats_entry_active_count_get(&entry, &val32);
-        last_active_count = val32;
-        of_table_stats_entry_lookup_count_get(&entry, &val64);
-        last_lookup_count = val64;
-        of_table_stats_entry_matched_count_get(&entry, &val64);
-        last_matched_count = val64;
-
-        ++n;
-    }
-    TEST_ASSERT(n == 1);
-
-    of_table_stats_reply_delete(table_stats_reply);
-}
 
 /* Fake state manager notification functions */
 
@@ -195,12 +61,17 @@ struct {
 
 indigo_error_t indigo_core_packet_in(of_packet_in_t *of_packet_in)
 {
+    of_octets_t octets;
+
     pkt_in_info->calledf = TRUE;
     ++pkt_in_info->called_cnt;
     of_packet_in_in_port_get(of_packet_in, &pkt_in_info->in_port);
-    of_packet_in_data_get(of_packet_in, &pkt_in_info->of_octets);
+    of_packet_in_data_get(of_packet_in, &octets);
     of_packet_in_total_len_get(of_packet_in, &pkt_in_info->total_len);
     of_packet_in_reason_get(of_packet_in, &pkt_in_info->reason);
+
+    pkt_in_info->of_octets.bytes = octets.bytes;
+    pkt_in_info->of_octets.data = aim_memdup(octets.data, octets.bytes);
 
     of_packet_in_delete(of_packet_in);
 
@@ -222,6 +93,7 @@ pkt_in_chk(of_port_no_t in_port, uint8_t *data, unsigned len, unsigned reason)
     TEST_ASSERT(pkt_in_info->of_octets.bytes == len);
     TEST_ASSERT(pkt_in_info->total_len == len);
     TEST_ASSERT(pkt_in_info->reason == reason);
+    aim_free(pkt_in_info->of_octets.data);
 }
 
 
@@ -293,23 +165,48 @@ tbl_stats_chk(unsigned exp_active_count,
               unsigned exp_lookup_count,
               unsigned exp_matched_count)
 {
-    indigo_cookie_t               callback_cookie = (indigo_cookie_t) random();
     of_table_stats_request_t      *table_stats_request;
+    of_table_stats_reply_t        *table_stats_reply;
+    uint64_t last_lookup_count, last_matched_count;
+    uint32_t last_active_count;
+    indigo_error_t rv;
 
     table_stats_request =
         of_table_stats_request_new(ind_fwd_config->of_version);
     TEST_ASSERT(table_stats_request != NULL);
     
-    callback_arm(indigo_core_table_stats_get_callback_info);
+    rv = indigo_fwd_table_stats_get(table_stats_request, &table_stats_reply);
+    TEST_ASSERT(rv == INDIGO_ERROR_NONE);
     
-    indigo_fwd_table_stats_get(table_stats_request, callback_cookie);
-    
-    callback_chk(indigo_core_table_stats_get_callback_info, callback_cookie);
+    {
+        of_list_table_stats_entry_t   list;
+        of_table_stats_entry_t        entry;
+        unsigned                      n;
+        int                           rv;
+        uint32_t                      max_entries;
+
+        of_table_stats_reply_entries_bind(table_stats_reply, &list);
+
+        n = 0;
+        OF_LIST_TABLE_STATS_ENTRY_ITER(&list, &entry, rv) {
+            of_table_stats_entry_max_entries_get(&entry, &max_entries);
+            TEST_ASSERT(max_entries == ind_fwd_config->max_flows);
+            of_table_stats_entry_active_count_get(&entry, &last_active_count);
+            of_table_stats_entry_lookup_count_get(&entry, &last_lookup_count);
+            of_table_stats_entry_matched_count_get(&entry, &last_matched_count);
+
+            ++n;
+        }
+        TEST_ASSERT(n == 1);
+    }
 
     of_table_stats_request_delete(table_stats_request);
+    of_table_stats_reply_delete(table_stats_reply);
+
     TEST_ASSERT(last_matched_count == exp_matched_count);
     TEST_ASSERT(last_active_count == exp_active_count);
     TEST_ASSERT(last_lookup_count == exp_lookup_count);
+    TEST_ASSERT(rv == INDIGO_ERROR_NONE);
 }
 
 void
@@ -317,15 +214,14 @@ flow_stats_chk(indigo_cookie_t flow_id,
                unsigned exp_cnt_packets,
                unsigned exp_cnt_bytes)
 {
-    indigo_cookie_t              callback_cookie = (indigo_cookie_t) random();
+    indigo_error_t rv;
+    indigo_fi_flow_stats_t flow_stats;
 
-    callback_arm(indigo_core_flow_stats_get_callback_info);
-    indigo_fwd_flow_stats_get(flow_id, callback_cookie);
-
-    callback_chk(indigo_core_flow_stats_get_callback_info, callback_cookie);
+    rv = indigo_fwd_flow_stats_get(flow_id, &flow_stats);
+    TEST_ASSERT(rv == INDIGO_ERROR_NONE);
     
-    TEST_ASSERT(last_packets == exp_cnt_packets);
-    TEST_ASSERT(last_bytes == exp_cnt_bytes);
+    TEST_ASSERT(flow_stats.packets == exp_cnt_packets);
+    TEST_ASSERT(flow_stats.bytes == exp_cnt_bytes);
 }
 
 
@@ -366,6 +262,9 @@ test_packet_receive(void)
 int
 main(int argc, char* argv[])
 {
+    indigo_error_t rv;
+    const indigo_flow_id_t flow_id = 0x12345678;
+
     /* Init module */
     TEST_ASSERT(INDIGO_SUCCESS(ind_fwd_init(ind_fwd_config)));
     TEST_ASSERT(INDIGO_SUCCESS(ind_fwd_enable_set(1)));
@@ -375,13 +274,11 @@ main(int argc, char* argv[])
     
     /* Create a flow */
     {
-        const indigo_flow_id_t flow_id = 0x12345678;
-
         of_flow_add_t                 *of_flow_add = 0;
         of_match_t                    of_match[1];
         of_list_action_t              *of_list_action = 0;
         of_action_t                   *of_action = 0;
-        indigo_cookie_t               callback_cookie = (indigo_cookie_t) random();
+        uint8_t                       table_id = 0;
 
         TEST_ASSERT((of_flow_add = of_flow_add_new(ind_fwd_config->of_version)) != 0);
 
@@ -398,14 +295,9 @@ main(int argc, char* argv[])
         OK(of_list_action_append(of_list_action, of_action));
         OK(of_flow_add_actions_set(of_flow_add, of_list_action));
                 
-        callback_arm(indigo_state_manager_flow_create_callback_info);
-
-        indigo_fwd_flow_create(flow_id, of_flow_add, callback_cookie);
-
-        TEST_ASSERT(created_flow_id == flow_id);
-
-        callback_chk(indigo_state_manager_flow_create_callback_info,
-                     callback_cookie);
+        rv = indigo_fwd_flow_create(flow_id, of_flow_add, &table_id);
+        TEST_ASSERT(rv == INDIGO_ERROR_NONE);
+        TEST_ASSERT(table_id == 0);
 
         of_action_delete(of_action);
         of_list_action_delete(of_list_action);
@@ -413,7 +305,7 @@ main(int argc, char* argv[])
     }
 
     tbl_stats_chk(1, 1, 0);     /* Check table stats */
-    flow_stats_chk(created_flow_id, 0, 0); /* Check flow stats */
+    flow_stats_chk(flow_id, 0, 0); /* Check flow stats */
 
     /* Process a test packet
        -- Should match defined flow
@@ -431,7 +323,7 @@ main(int argc, char* argv[])
     }
 
     tbl_stats_chk(1, 2, 1);     /* Check table stats */
-    flow_stats_chk(created_flow_id, 1, 100); /* Check flow stats */
+    flow_stats_chk(flow_id, 1, 100); /* Check flow stats */
 
     /* Modify the flow */
     {
@@ -439,7 +331,6 @@ main(int argc, char* argv[])
         of_match_t                    of_match[1];
         of_list_action_t              *of_list_action = 0;
         of_action_t                   *of_action = 0;
-        indigo_cookie_t               callback_cookie = (indigo_cookie_t) random();
         
         TEST_ASSERT((of_flow_modify = of_flow_modify_strict_new(ind_fwd_config->of_version)) != 0);
         of_flow_modify_strict_priority_set(of_flow_modify, 1234);
@@ -453,12 +344,8 @@ main(int argc, char* argv[])
         OK(of_list_action_append(of_list_action, of_action));
         OK(of_flow_modify_strict_actions_set(of_flow_modify, of_list_action));
 
-        callback_arm(indigo_state_manager_flow_modify_callback_info);
-
-        indigo_fwd_flow_modify(created_flow_id, of_flow_modify, callback_cookie);
-
-        callback_chk(indigo_state_manager_flow_modify_callback_info, 
-                     callback_cookie);
+        rv = indigo_fwd_flow_modify(flow_id, of_flow_modify);
+        TEST_ASSERT(rv == INDIGO_ERROR_NONE);
 
         of_action_delete(of_action);
         of_list_action_delete(of_list_action);
@@ -466,7 +353,7 @@ main(int argc, char* argv[])
     }
 
     tbl_stats_chk(1, 2, 1);     /* Check table stats */
-    flow_stats_chk(created_flow_id, 1, 100); /* Check flow stats */
+    flow_stats_chk(flow_id, 1, 100); /* Check flow stats */
     
     /* Process a test packet
        -- Should match modified flow
@@ -484,7 +371,7 @@ main(int argc, char* argv[])
     }
 
     tbl_stats_chk(1, 3, 2);     /* Check table stats */
-    flow_stats_chk(created_flow_id, 2, 200); /* Check flow stats */
+    flow_stats_chk(flow_id, 2, 200); /* Check flow stats */
 
     sleep(6);                   /* Pause for flow to expire */
 
@@ -504,21 +391,17 @@ main(int argc, char* argv[])
     }
 
     tbl_stats_chk(1, 4, 2);     /* Check table stats */
-    flow_stats_chk(created_flow_id, 2, 200); /* Check flow stats */    
+    flow_stats_chk(flow_id, 2, 200); /* Check flow stats */    
 
     /* Delete the flow */
     {
-        indigo_cookie_t callback_cookie = (indigo_cookie_t) random();
+        indigo_fi_flow_stats_t flow_stats;
 
-        callback_arm(indigo_state_manager_flow_delete_callback_info);
+        rv = indigo_fwd_flow_delete(flow_id, &flow_stats);
+        TEST_ASSERT(rv == INDIGO_ERROR_NONE);
 
-        indigo_fwd_flow_delete(created_flow_id, callback_cookie);
-
-        callback_chk(indigo_state_manager_flow_delete_callback_info,
-                     callback_cookie);
-
-        TEST_ASSERT(last_packets == 2);
-        TEST_ASSERT(last_bytes   == 200);
+        TEST_ASSERT(flow_stats.packets == 2);
+        TEST_ASSERT(flow_stats.bytes   == 200);
     }
 
     tbl_stats_chk(0, 4, 2);     /* Check table stats */
