@@ -578,9 +578,8 @@ indigo_port_features_get(of_features_reply_t *features)
 /** \brief Modify an OF port's configuration */
 
 
-void
-indigo_port_modify(of_port_mod_t *port_mod,
-                   indigo_cookie_t callback_cookie)
+indigo_error_t
+indigo_port_modify(of_port_mod_t *port_mod)
 {
     indigo_error_t result = INDIGO_ERROR_NONE;
     of_port_no_t   of_port_num;
@@ -607,15 +606,15 @@ indigo_port_modify(of_port_mod_t *port_mod,
     p->config = (config & mask) | (p->config & ~mask);
 
  done:
-    indigo_core_port_modify_callback(result, callback_cookie);
+    return result;
 }
 
 
 /** \brief Get statistics for requested OF ports */
 
-void
+indigo_error_t
 indigo_port_stats_get(of_port_stats_request_t *port_stats_request,
-                      indigo_cookie_t callback_cookie)
+                      of_port_stats_reply_t **port_stats_reply_ptr)
 {
     indigo_error_t             result = INDIGO_ERROR_NONE;
     of_list_port_stats_entry_t *port_stats_list = 0;
@@ -675,17 +674,22 @@ indigo_port_stats_get(of_port_stats_request_t *port_stats_request,
         of_list_port_stats_entry_delete(port_stats_list);
     }
 
-    indigo_core_port_stats_get_callback(result, port_stats_reply,
-                                        callback_cookie);
+    if (result == INDIGO_ERROR_NONE) {
+        *port_stats_reply_ptr = port_stats_reply;
+    } else {
+        of_object_delete(port_stats_reply);
+    }
+
+    return result;
 }
 
 
 /** \brief Return the configuration of port transmit queue(s) */
 
 
-void
+indigo_error_t
 indigo_port_queue_config_get(of_queue_get_config_request_t *request,
-                             indigo_cookie_t callback_cookie)
+                             of_queue_get_config_reply_t **reply_ptr)
 {
     /* @fixme Stubbed out for now */
     of_queue_get_config_reply_t *reply;
@@ -704,15 +708,16 @@ indigo_port_queue_config_get(of_queue_get_config_request_t *request,
     /* @FIXME */
     LOG_WARN("Queue config get not implemented");
 
-    indigo_core_queue_config_get_callback(result, reply, callback_cookie);
+    *reply_ptr = reply;
+    return result;
 }
 
 
 /** \brief Return the statistics for port transmit queue(s) */
 
-void
+indigo_error_t
 indigo_port_queue_stats_get(of_queue_stats_request_t *request,
-                            indigo_cookie_t callback_cookie)
+                            of_queue_stats_reply_t **reply_ptr)
 {
     indigo_error_t              result = INDIGO_ERROR_NONE;
     of_port_no_t                req_of_port_num, of_port_num;
@@ -796,7 +801,14 @@ indigo_port_queue_stats_get(of_queue_stats_request_t *request,
         of_list_queue_stats_entry_delete(entry);
     }
 
-    indigo_core_queue_stats_get_callback(result, reply, callback_cookie);
+    if (result == INDIGO_ERROR_NONE) {
+        *reply_ptr = reply;
+    } else {
+        of_object_delete(reply);
+    }
+
+    return result;
+
 }
 
 /***************************************************************************/

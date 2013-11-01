@@ -287,10 +287,10 @@ flow_id_dict_find(indigo_cookie_t flow_id)
 
 /** \brief Create a flow */
 
-void
+indigo_error_t
 indigo_fwd_flow_create(indigo_cookie_t flow_id,
                        of_flow_add_t   *flow_add,
-                       indigo_cookie_t callback_cookie)
+                       uint8_t         *table_id)
 {
     indigo_error_t       result          = INDIGO_ERROR_NONE;
     fme_entry_t*          fme_entry       = 0;
@@ -532,19 +532,16 @@ indigo_fwd_flow_create(indigo_cookie_t flow_id,
         if (fme_flow_data)   INDIGO_MEM_FREE(fme_flow_data);
     }
 
-    indigo_core_flow_create_callback(result,
-                                     flow_id,
-                                     0, /* @FIXME hardcoded table id */
-                                     callback_cookie);
+    *table_id = 0; /* @FIXME hardcoded table id */
+    return result;
 }
 
 
 /** \brief Modify a flow */
 
-void
+indigo_error_t
 indigo_fwd_flow_modify(indigo_cookie_t flow_id,
-                       of_flow_modify_t *flow_modify,
-                       indigo_cookie_t callback_cookie)
+                       of_flow_modify_t *flow_modify)
 {
     indigo_error_t       result = INDIGO_ERROR_NONE;
     struct fme_flow_data *fme_flow_data;
@@ -577,19 +574,18 @@ indigo_fwd_flow_modify(indigo_cookie_t flow_id,
         of_list_action_delete(of_list_action);
     }
 
-    indigo_core_flow_modify_callback(result, NULL, callback_cookie);
+    return result;
 }
 
 
 /** \brief Delete a flow */
 
-void
+indigo_error_t
 indigo_fwd_flow_delete(indigo_cookie_t flow_id,
-                       indigo_cookie_t callback_cookie)
+                       indigo_fi_flow_stats_t *flow_stats)
 {
     indigo_error_t   result = INDIGO_ERROR_NONE;
     struct fme_flow_data *fme_flow_data;
-    indigo_fi_flow_stats_t flow_stats;
 
     if ((fme_flow_data = flow_id_dict_find(flow_id)) == 0) {
        LOG_INFO("Request to delete non-existent flow");
@@ -597,9 +593,9 @@ indigo_fwd_flow_delete(indigo_cookie_t flow_id,
        goto done;
     }
 
-    flow_stats.packets = fme_flow_data->cnt_pkts;
-    flow_stats.bytes = fme_flow_data->cnt_bytes;
-    flow_stats.flow_id = flow_id;
+    flow_stats->packets = fme_flow_data->cnt_pkts;
+    flow_stats->bytes = fme_flow_data->cnt_bytes;
+    flow_stats->flow_id = flow_id;
 
     fme_remove_entry(fme, fme_flow_data->fme_entry); 
     fme_entry_destroy(fme_flow_data->fme_entry); 
@@ -615,21 +611,18 @@ indigo_fwd_flow_delete(indigo_cookie_t flow_id,
     --active_count;
 
   done:
-    indigo_core_flow_delete_callback(result, &flow_stats,
-                                     callback_cookie);
-
+    return result;
 }
 
 
 /** \brief Get flow statistics */
 
-void
+indigo_error_t
 indigo_fwd_flow_stats_get(indigo_cookie_t flow_id,
-                          indigo_cookie_t callback_cookie)
+                          indigo_fi_flow_stats_t *flow_stats)
 {
     indigo_error_t result = INDIGO_ERROR_NONE;
     struct fme_flow_data *fme_flow_data;
-    indigo_fi_flow_stats_t flow_stats;
 
     if ((fme_flow_data = flow_id_dict_find(flow_id)) == 0) {
        LOG_ERROR("Flow not found");
@@ -637,24 +630,22 @@ indigo_fwd_flow_stats_get(indigo_cookie_t flow_id,
        goto done;
     }
 
-    flow_stats.packets = fme_flow_data->cnt_pkts;
-    flow_stats.bytes   = fme_flow_data->cnt_bytes;
-    flow_stats.flow_id = flow_id;
+    flow_stats->packets = fme_flow_data->cnt_pkts;
+    flow_stats->bytes   = fme_flow_data->cnt_bytes;
+    flow_stats->flow_id = flow_id;
 
     /* @fixme Get duration from FME data? */
 
   done:
-
-    indigo_core_flow_stats_get_callback(result, &flow_stats,
-                                        callback_cookie);
+    return result;
 }
 
 
 /** \brief Get table statistics */
 
-void
+indigo_error_t
 indigo_fwd_table_stats_get(of_table_stats_request_t *table_stats_request,
-                           indigo_cookie_t callback_cookie)
+                           of_table_stats_reply_t **table_stats_reply_ptr)
 {
     indigo_error_t result = INDIGO_ERROR_NONE;
     of_list_table_stats_entry_t *of_list_table_stats_entry = 0;
@@ -719,8 +710,8 @@ indigo_fwd_table_stats_get(of_table_stats_request_t *table_stats_request,
     of_table_stats_entry_delete(of_table_stats_entry);
     of_list_table_stats_entry_delete(of_list_table_stats_entry);
 
-    indigo_core_table_stats_get_callback(result, table_stats_reply,
-                                         callback_cookie);
+    *table_stats_reply_ptr = table_stats_reply;
+    return result;
 }
 
 /**
