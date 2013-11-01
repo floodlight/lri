@@ -74,49 +74,6 @@ ind_soc_socket_unregister(int socket_id)
     return INDIGO_ERROR_NONE;
 }
 
-void
-indigo_core_flow_create_callback(indigo_error_t result,
-                                 indigo_cookie_t flow_id,
-                                 uint8_t table_id,
-                                 indigo_cookie_t callback_cookie)
-{
-    printf("flow_create_callback\n");
-}
-
-
-void
-indigo_core_flow_modify_callback(indigo_error_t result,
-                                 indigo_fi_flow_stats_t *flow_stats,
-                                 indigo_cookie_t callback_cookie)
-{
-    printf("Flow modify callback\n");
-}
-
-void
-indigo_core_flow_delete_callback(indigo_error_t result,
-                                 indigo_fi_flow_stats_t *flow_stats,
-                                 indigo_cookie_t callback_cookie)
-{
-    printf("Flow delete callback\n");
-}
-
-
-void
-indigo_core_flow_stats_get_callback(indigo_error_t result,
-                                    indigo_fi_flow_stats_t *flow_stats,
-                                    indigo_cookie_t callback_cookie)
-{
-    printf("Flow stats callback\n");
-}
-
-void
-indigo_core_table_stats_get_callback(indigo_error_t result,
-                                     of_table_stats_reply_t *table_stats_reply,
-                                     indigo_cookie_t callback_cookie)
-{
-    printf("Table stats callback\n");
-}
-
 indigo_error_t
 indigo_core_packet_in(of_packet_in_t *packet_in)
 {
@@ -132,137 +89,6 @@ indigo_port_config_t indigo_port_config[1] = {{
         0                           /* disable_on_add */
     }};
 
-struct callback_info {
-    unsigned calledf;
-    unsigned called_cnt;
-    indigo_error_t result;
-    indigo_cookie_t callback_cookie;
-};
-
-void
-callback_arm(struct callback_info *callback_info)
-{
-    callback_info->calledf = FALSE;
-    callback_info->result = -1;
-    callback_info->callback_cookie = (indigo_cookie_t)0;
-}
-
-void
-callback_record(struct callback_info *callback_info, indigo_error_t result,
-                indigo_cookie_t callback_cookie)
-{
-    callback_info->calledf = TRUE;
-    callback_info->result = result;
-    callback_info->callback_cookie = callback_cookie;
-}
-
-void
-callback_chk(struct callback_info *callback_info, indigo_error_t result,
-             indigo_cookie_t callback_cookie)
-{
-    TEST_ASSERT(callback_info->calledf);
-    TEST_ASSERT(callback_info->result == result);
-    TEST_ASSERT(callback_info->callback_cookie == callback_cookie);
-}
-
-
-/* Fake state manager callback functions */
-
-struct callback_info indigo_core_port_mod_callback_info[1];
-
-void
-indigo_core_port_modify_callback(indigo_error_t result,
-                                 indigo_cookie_t callback_cookie)
-{
-    callback_record(indigo_core_port_mod_callback_info, result, callback_cookie);
-}
-
-struct callback_info indigo_core_port_stats_callback_info[1];
-
-
-void
-indigo_core_port_stats_get_callback(indigo_error_t result,
-                                    of_port_stats_reply_t *reply,
-                                    indigo_cookie_t callback_cookie)
-{
-    of_list_port_stats_entry_t   list;
-    of_port_stats_entry_t        entry;
-    int rv;
-    int n;
-
-    callback_record(indigo_core_port_stats_callback_info, result,
-                    callback_cookie);
-
-    of_port_stats_reply_entries_bind(reply, &list);
-    n = 0;
-    OF_LIST_PORT_STATS_ENTRY_ITER(&list, &entry, rv) {
-        of_port_no_t of_port_num;
-        uint64_t     stat;
-
-        of_port_stats_entry_port_no_get(&entry, &of_port_num);
-        TEST_ASSERT(of_port_num == TEST_OF_PORT_NUM);
-        of_port_stats_entry_tx_packets_get(&entry, &stat);
-        TEST_ASSERT(stat == 1);
-        of_port_stats_entry_tx_bytes_get(&entry, &stat);
-        TEST_ASSERT(stat == TEST_PKT_LEN);
-
-        ++n;
-    }
-    TEST_ASSERT(rv == OF_ERROR_RANGE);
-    TEST_ASSERT(n == 1);
-    of_port_stats_reply_delete(reply);
-}
-
-struct callback_info indigo_core_queue_config_callback_info[1];
-
-
-void
-indigo_core_queue_config_get_callback(indigo_error_t result,
-                                      of_queue_get_config_reply_t *reply,
-                                      indigo_cookie_t callback_cookie)
-{
-    callback_record(indigo_core_queue_config_callback_info, result,
-                    callback_cookie);
-}
-
-struct callback_info indigo_core_queue_stats_callback_info[1];
-
-
-void
-indigo_core_queue_stats_get_callback(indigo_error_t result,
-                                     of_queue_stats_reply_t *reply,
-                                     indigo_cookie_t callback_cookie)
-{
-    of_list_queue_stats_entry_t   list;
-    of_queue_stats_entry_t        entry;
-    int                           rv;
-    unsigned                      n;
-
-    callback_record(indigo_core_queue_stats_callback_info, result,
-                    callback_cookie);
-
-    of_queue_stats_reply_entries_bind(reply, &list);
-    n = 0;
-    OF_LIST_QUEUE_STATS_ENTRY_ITER(&list, &entry, rv) {
-        of_port_no_t of_port_num;
-        uint32_t     queue_id;
-        uint64_t     stat;
-
-        of_queue_stats_entry_port_no_get(&entry, &of_port_num);
-        TEST_ASSERT(of_port_num == TEST_OF_PORT_NUM);
-        of_queue_stats_entry_queue_id_get(&entry, &queue_id);
-        TEST_ASSERT(queue_id == 0);
-        of_queue_stats_entry_tx_packets_get(&entry, &stat);
-        TEST_ASSERT(stat == 1);
-        of_queue_stats_entry_tx_bytes_get(&entry, &stat);
-        TEST_ASSERT(stat == TEST_PKT_LEN);
-
-        ++n;
-    }
-    TEST_ASSERT(rv == OF_ERROR_RANGE);
-    TEST_ASSERT(n == 1);
-    of_queue_stats_reply_delete(reply);
-}
 
 /* Fake notifications to Forwarding */
 
@@ -318,6 +144,8 @@ indigo_core_dpid_set(of_dpid_t dpid)
 int
 main(int argc, char* argv[])
 {
+    indigo_error_t rv;
+
     // MCHECK_INIT;  /* @fixme */
 
     /* Init module */
@@ -431,26 +259,48 @@ main(int argc, char* argv[])
     /* Get port's statistics */
     {
         of_port_stats_request_t      *request = 0;
-        indigo_cookie_t              callback_cookie = (indigo_cookie_t) random();
+        of_port_stats_reply_t        *reply = 0;
 
         request = of_port_stats_request_new(ind_port_config->of_version);
         TEST_ASSERT(request != NULL);
         of_port_stats_request_port_no_set(request, OF_PORT_DEST_ALL);
 
-        callback_arm(indigo_core_port_stats_callback_info);
+        rv = indigo_port_stats_get(request, &reply);
+        TEST_ASSERT(rv == INDIGO_ERROR_NONE);
 
-        indigo_port_stats_get(request, callback_cookie);
+        {
+            of_list_port_stats_entry_t   list;
+            of_port_stats_entry_t        entry;
+            int rv;
+            int n;
 
-        callback_chk(indigo_core_port_stats_callback_info, INDIGO_ERROR_NONE,
-                     callback_cookie);
+            of_port_stats_reply_entries_bind(reply, &list);
+            n = 0;
+            OF_LIST_PORT_STATS_ENTRY_ITER(&list, &entry, rv) {
+                of_port_no_t of_port_num;
+                uint64_t     stat;
+
+                of_port_stats_entry_port_no_get(&entry, &of_port_num);
+                TEST_ASSERT(of_port_num == TEST_OF_PORT_NUM);
+                of_port_stats_entry_tx_packets_get(&entry, &stat);
+                TEST_ASSERT(stat == 1);
+                of_port_stats_entry_tx_bytes_get(&entry, &stat);
+                TEST_ASSERT(stat == TEST_PKT_LEN);
+
+                ++n;
+            }
+            TEST_ASSERT(rv == OF_ERROR_RANGE);
+            TEST_ASSERT(n == 1);
+        }
 
         of_port_stats_request_delete(request);
+        of_port_stats_reply_delete(reply);
     }
 
     /* Get queue statistics */
     {
         of_queue_stats_request_t      *request = 0;
-        indigo_cookie_t               callback_cookie = (indigo_cookie_t) random();
+        of_queue_stats_reply_t        *reply = 0;
 
         request = of_queue_stats_request_new(ind_port_config->of_version);
         TEST_ASSERT(request != NULL);
@@ -458,32 +308,52 @@ main(int argc, char* argv[])
 
         of_queue_stats_request_queue_id_set(request, OF_QUEUE_ALL);
 
-        callback_arm(indigo_core_queue_stats_callback_info);
+        rv = indigo_port_queue_stats_get(request, &reply);
+        TEST_ASSERT(rv == INDIGO_ERROR_NONE);
 
-        indigo_port_queue_stats_get(request, callback_cookie);
+        {
+            of_list_queue_stats_entry_t   list;
+            of_queue_stats_entry_t        entry;
+            int                           rv;
+            unsigned                      n;
 
-        callback_chk(indigo_core_queue_stats_callback_info, INDIGO_ERROR_NONE,
-                     callback_cookie);
+            of_queue_stats_reply_entries_bind(reply, &list);
+            n = 0;
+            OF_LIST_QUEUE_STATS_ENTRY_ITER(&list, &entry, rv) {
+                of_port_no_t of_port_num;
+                uint32_t     queue_id;
+                uint64_t     stat;
+
+                of_queue_stats_entry_port_no_get(&entry, &of_port_num);
+                TEST_ASSERT(of_port_num == TEST_OF_PORT_NUM);
+                of_queue_stats_entry_queue_id_get(&entry, &queue_id);
+                TEST_ASSERT(queue_id == 0);
+                of_queue_stats_entry_tx_packets_get(&entry, &stat);
+                TEST_ASSERT(stat == 1);
+                of_queue_stats_entry_tx_bytes_get(&entry, &stat);
+                TEST_ASSERT(stat == TEST_PKT_LEN);
+
+                ++n;
+            }
+            TEST_ASSERT(rv == OF_ERROR_RANGE);
+            TEST_ASSERT(n == 1);
+        }
 
         of_queue_stats_request_delete(request);
+        of_queue_stats_reply_delete(reply);
     }
 
     /* Modify port's configuration */
     {
         of_port_mod_t              *mod_req = 0;
-        indigo_cookie_t            callback_cookie = (indigo_cookie_t) random();
 
         mod_req = of_port_mod_new(ind_port_config->of_version);
         TEST_ASSERT(mod_req != NULL);
         of_port_mod_port_no_set(mod_req, TEST_OF_PORT_NUM);
         of_port_mod_config_set(mod_req, 0x12345678);
 
-        callback_arm(indigo_core_port_mod_callback_info);
-
-        indigo_port_modify(mod_req, callback_cookie);
-
-        callback_chk(indigo_core_port_mod_callback_info, INDIGO_ERROR_NONE,
-                     callback_cookie);
+        rv = indigo_port_modify(mod_req);
+        TEST_ASSERT(rv == INDIGO_ERROR_NONE);
 
         of_port_mod_delete(mod_req);
     }
