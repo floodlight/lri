@@ -1,13 +1,13 @@
 ################################################################
 #
-#        Copyright 2013, Big Switch Networks, Inc. 
-# 
+#        Copyright 2013, Big Switch Networks, Inc.
+#
 # Licensed under the Eclipse Public License, Version 1.0 (the
 # "License"); you may not use this file except in compliance
 # with the License. You may obtain a copy of the License at
-# 
+#
 #        http://www.eclipse.org/legal/epl-v10.html
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
@@ -23,7 +23,7 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 
 #
-# Resolve submodule dependencies. 
+# Resolve submodule dependencies.
 #
 ifndef SUBMODULE_INFRA
   ifdef SUBMODULES
@@ -51,6 +51,16 @@ ifndef SUBMODULE_INDIGO
     SUBMODULES_LOCAL += indigo
   endif
 endif
+
+ifndef SUBMODULE_LOXIGEN_ARTIFACTS
+  ifdef SUBMODULES
+    SUBMODULE_LOXIGEN_ARTIFACTS := $(SUBMODULES)/loxigen-artifacts
+  else
+    SUBMODULE_LOXIGEN_ARTIFACTS := $(ROOT)/submodules/loxigen-artifacts
+    SUBMODULES_LOCAL += loxigen-artifacts
+  endif
+endif
+
 
 
 ifdef SUBMODULES_LOCAL
