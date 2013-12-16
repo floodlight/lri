@@ -1,20 +1,20 @@
 /****************************************************************
- * 
- *        Copyright 2013, Big Switch Networks, Inc. 
- * 
+ *
+ *        Copyright 2013, Big Switch Networks, Inc.
+ *
  * Licensed under the Eclipse Public License, Version 1.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *        http://www.eclipse.org/legal/epl-v10.html
- * 
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND,
  * either express or implied. See the License for the specific
  * language governing permissions and limitations under the
  * License.
- * 
+ *
  ***************************************************************/
 
 /**
@@ -54,14 +54,14 @@ static int init_done = 0;
 
 /* Short hand logging macros */
 #define LOG_ERROR AIM_LOG_ERROR
-#define LOG_WARN AIM_LOG_WARN 
+#define LOG_WARN AIM_LOG_WARN
 #define LOG_INFO AIM_LOG_INFO
 #define LOG_VERBOSE AIM_LOG_VERBOSE
 #define LOG_TRACE AIM_LOG_TRACE
 
 static ind_fwd_config_t my_config[1];
 
-static fme_t* fme; 
+static fme_t* fme;
 
 static unsigned active_count;   /**< Number of flows defined */
 static uint64_t lookup_count;   /**< Number of packets looked up */
@@ -74,98 +74,98 @@ static int expiration_enabled = 1;
 static int
 fme_key_mask_dump__(fme_key_t* key, aim_pvs_t* pvs)
 {
-    iof_t iof; 
-    iof_init(&iof, pvs); 
+    iof_t iof;
+    iof_init(&iof, pvs);
     iof_push(&iof, "keymask = 0x%.8x", key->keymask);
-    if(key->keymask) { 
-        ppe_header_t h; 
-        iof_indent(&iof); 
+    if(key->keymask) {
+        ppe_header_t h;
+        iof_indent(&iof);
         for(h = 0; h <= PPE_HEADER_LAST; h++) {
-            if(key->keymask & (1<<h)) { 
-                iof_uprintf(&iof, "%s ", ppe_header_name(h)); 
+            if(key->keymask & (1<<h)) {
+                iof_uprintf(&iof, "%s ", ppe_header_name(h));
             }
         }
-        iof_uprintf(&iof, "\n"); 
+        iof_uprintf(&iof, "\n");
     }
-    iof_pop(&iof); 
-    return 0; 
+    iof_pop(&iof);
+    return 0;
 }
 
-                 
+
 /**
  * Dump a packet key
- */  
+ */
 static int
 fme_key_dump_pkey__(fme_key_t* key, aim_pvs_t* pvs)
 {
-    iof_t iof; 
-    ppe_field_t field; 
+    iof_t iof;
+    ppe_field_t field;
 
-    iof_init(&iof, pvs); 
-    
-    iof_push(&iof, "packet fme_key @ %p", key); 
+    iof_init(&iof, pvs);
+
+    iof_push(&iof, "packet fme_key @ %p", key);
 
     fme_key_mask_dump__(key, &iof.inherit);
-    iof_iprintf(&iof, "size = %d", key->size); 
-    iof_iprintfn(&iof, "value: "); 
+    iof_iprintf(&iof, "size = %d", key->size);
+    iof_iprintfn(&iof, "value: ");
 
 
-    for(field = PPE_FIELD_OF10_FIRST+1; 
+    for(field = PPE_FIELD_OF10_FIRST+1;
         field < PPE_FIELD_OF10_LAST; field++) {
-        const ppe_field_info_t* fi = ppe_field_info_get(field); 
+        const ppe_field_info_t* fi = ppe_field_info_get(field);
         if(fi->size_bits <= 32) {
-            uint32_t v; 
-            ppe_field_get_header(key->values, field, &v); 
-            if(v == 0) { 
-                iof_uprintf(&iof, "%s=0 ", ppe_field_name(field)); 
+            uint32_t v;
+            ppe_field_get_header(key->values, field, &v);
+            if(v == 0) {
+                iof_uprintf(&iof, "%s=0 ", ppe_field_name(field));
             }
             else {
-                iof_uprintf(&iof, "%s=0x%.8x ", ppe_field_name(field), v); 
+                iof_uprintf(&iof, "%s=0x%.8x ", ppe_field_name(field), v);
             }
-        }
-        else { 
-            /* todo */
-        }
-    }
-    iof_uprintf(&iof, "\n"); 
-    iof_pop(&iof); 
-    return 0; 
-}
-
-static int 
-fme_key_dump_mkey__(fme_key_t* key, aim_pvs_t* pvs)
-{       
-    iof_t iof; 
-    ppe_field_t field; 
-
-    iof_init(&iof, pvs); 
-    iof_push(&iof, "entry fme_key @ %p", key); 
-    fme_key_mask_dump__(key, &iof.inherit); 
-    iof_iprintf(&iof, "size = %d", key->size); 
-    iof_iprintfn(&iof, "keys: "); 
-
-    for(field = PPE_FIELD_OF10_FIRST+1; 
-        field < PPE_FIELD_OF10_LAST; field++) { 
-        const ppe_field_info_t* fi = ppe_field_info_get(field); 
-        if(fi->size_bits <= 32) { 
-            uint32_t v; 
-            uint32_t m; 
-            ppe_field_get_header(key->values, field, &v); 
-            ppe_field_get_header(key->masks, field, &m); 
-            if(v == 0 && m == 0) {
-                /* Not relevant. */
-                continue; 
-            }
-            iof_uprintf(&iof, "%s=%x:%x ", ppe_field_name(field), 
-                        v, m); 
         }
         else {
             /* todo */
         }
     }
-    iof_uprintf(&iof, "\n"); 
-    iof_pop(&iof); 
-    return 0; 
+    iof_uprintf(&iof, "\n");
+    iof_pop(&iof);
+    return 0;
+}
+
+static int
+fme_key_dump_mkey__(fme_key_t* key, aim_pvs_t* pvs)
+{
+    iof_t iof;
+    ppe_field_t field;
+
+    iof_init(&iof, pvs);
+    iof_push(&iof, "entry fme_key @ %p", key);
+    fme_key_mask_dump__(key, &iof.inherit);
+    iof_iprintf(&iof, "size = %d", key->size);
+    iof_iprintfn(&iof, "keys: ");
+
+    for(field = PPE_FIELD_OF10_FIRST+1;
+        field < PPE_FIELD_OF10_LAST; field++) {
+        const ppe_field_info_t* fi = ppe_field_info_get(field);
+        if(fi->size_bits <= 32) {
+            uint32_t v;
+            uint32_t m;
+            ppe_field_get_header(key->values, field, &v);
+            ppe_field_get_header(key->masks, field, &m);
+            if(v == 0 && m == 0) {
+                /* Not relevant. */
+                continue;
+            }
+            iof_uprintf(&iof, "%s=%x:%x ", ppe_field_name(field),
+                        v, m);
+        }
+        else {
+            /* todo */
+        }
+    }
+    iof_uprintf(&iof, "\n");
+    iof_pop(&iof);
+    return 0;
 }
 
 
@@ -192,7 +192,7 @@ indigo_fwd_forwarding_features_get(of_features_reply_t *features)
 
     OF_FLAG_ENUM_SET(actions,
         OF_ACTION_TYPE_OUTPUT_BY_VERSION(features->version));
-    OF_FLAG_ENUM_SET(actions, 
+    OF_FLAG_ENUM_SET(actions,
         OF_ACTION_TYPE_SET_VLAN_VID_BY_VERSION(features->version));
     OF_FLAG_ENUM_SET(actions,
         OF_ACTION_TYPE_SET_VLAN_PCP_BY_VERSION(features->version));
@@ -221,7 +221,7 @@ indigo_fwd_forwarding_features_get(of_features_reply_t *features)
     if (features->version == OF_VERSION_1_0) {
         of_features_reply_actions_set(features, actions);
     }
-    
+
     return (INDIGO_ERROR_NONE);
 }
 
@@ -298,11 +298,11 @@ indigo_fwd_flow_create(indigo_cookie_t flow_id,
     of_list_action_t     *of_list_action = 0;
     uint16_t             pri;
     of_match_t           of_match[1];
-    fme_key_t           fme_key; 
-    extern int fme_oc_printf(void*, const char*, ...); 
+    fme_key_t           fme_key;
+    extern int fme_oc_printf(void*, const char*, ...);
 
     LOG_TRACE("Flow create called");
-    fme_flow_data = (struct fme_flow_data *) 
+    fme_flow_data = (struct fme_flow_data *)
         INDIGO_MEM_ALLOC(sizeof(struct fme_flow_data));
     if (fme_flow_data == NULL) {
         LOG_ERROR("INDIGO_MEM_ALLOC() failed");
@@ -337,21 +337,21 @@ indigo_fwd_flow_create(indigo_cookie_t flow_id,
         goto done;
     }
 
-    fme_entry->prio = pri; 
-    fme_entry->cookie = fme_flow_data; 
+    fme_entry->prio = pri;
+    fme_entry->cookie = fme_flow_data;
     fme_flow_data->fme_entry = fme_entry;
-    
-    FME_MEMSET(&fme_key, 0, sizeof(fme_key)); 
+
+    FME_MEMSET(&fme_key, 0, sizeof(fme_key));
 
     /*
-     * We use the OF10 header as the key. 
+     * We use the OF10 header as the key.
      */
-    fme_key.size = ppe_field_info_table[PPE_FIELD_OF10_LAST].offset_bytes; 
-    fme_key.dumper = fme_key_dump_mkey__; 
-    
+    fme_key.size = ppe_field_info_table[PPE_FIELD_OF10_LAST].offset_bytes;
+    fme_key.dumper = fme_key_dump_mkey__;
+
     /* For each match field F,
        if F is specified (i.e. not wildcarded),
-       add it to the FME key. 
+       add it to the FME key.
     */
 
 #define ADD_FME_KEY_FIELD(u, v, w, ph)                                  \
@@ -360,8 +360,8 @@ indigo_fwd_flow_create(indigo_cookie_t flow_id,
                              (of_match->fields. w) & (of_match->masks. w)); \
         ppe_field_set_header(fme_key.masks, v, of_match->masks. w);     \
         fme_key.keymask |= (1<<ph);                                     \
-    }                                                                     
-    
+    }
+
 #define ADD_FME_KEY_MAC_ADDR(u, v, w)                                   \
     do {                                                                \
         if (OF_MATCH_MASK_ ## u ## _ACTIVE_TEST(of_match)) {            \
@@ -378,118 +378,118 @@ indigo_fwd_flow_create(indigo_cookie_t flow_id,
     } while (0)
 
     /** \todo Non-canonical flows? */
-    
-    ADD_FME_KEY_FIELD(IN_PORT,    PPE_FIELD_OF10_INGRESS_PORT,  in_port, 
+
+    ADD_FME_KEY_FIELD(IN_PORT,    PPE_FIELD_OF10_INGRESS_PORT,  in_port,
                       PPE_HEADER_META);
     ADD_FME_KEY_MAC_ADDR(ETH_SRC, PPE_FIELD_OF10_ETHER_SRC_MAC, eth_src);
     ADD_FME_KEY_MAC_ADDR(ETH_DST, PPE_FIELD_OF10_ETHER_DST_MAC, eth_dst);
 
     if (OF_MATCH_MASK_VLAN_VID_ACTIVE_TEST(of_match)) {
         if (OF_MATCH_MASK_VLAN_VID_EXACT_TEST(of_match)
-            && (of_match->fields.vlan_vid 
+            && (of_match->fields.vlan_vid
                 == OF_MATCH_UNTAGGED_VLAN_ID(flow_add->version)
                 )
             ) {
 
             /* Match untagged packets */
-            ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_PACKET_FORMAT, 
-                                 PPE_HEADER_ETHERII); 
-            ppe_field_set_header(fme_key.masks, PPE_FIELD_OF10_PACKET_FORMAT, 
+            ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_PACKET_FORMAT,
+                                 PPE_HEADER_ETHERII);
+            ppe_field_set_header(fme_key.masks, PPE_FIELD_OF10_PACKET_FORMAT,
                                  -1);
         } else {
             /* Match tagged packets */
-            ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_PACKET_FORMAT, 
-                                 PPE_HEADER_8021Q); 
-            ppe_field_set_header(fme_key.masks, PPE_FIELD_OF10_PACKET_FORMAT, 
-                                 -1); 
-            ADD_FME_KEY_FIELD(VLAN_VID, PPE_FIELD_OF10_VLAN, vlan_vid, 
+            ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_PACKET_FORMAT,
+                                 PPE_HEADER_8021Q);
+            ppe_field_set_header(fme_key.masks, PPE_FIELD_OF10_PACKET_FORMAT,
+                                 -1);
+            ADD_FME_KEY_FIELD(VLAN_VID, PPE_FIELD_OF10_VLAN, vlan_vid,
                               PPE_HEADER_8021Q);
-            ADD_FME_KEY_FIELD(VLAN_PCP, PPE_FIELD_OF10_PRI,  vlan_pcp, 
+            ADD_FME_KEY_FIELD(VLAN_PCP, PPE_FIELD_OF10_PRI,  vlan_pcp,
                               PPE_HEADER_8021Q);
         }
     }
 
-    ADD_FME_KEY_FIELD(ETH_TYPE,    PPE_FIELD_OF10_ETHER_TYPE, eth_type, 
+    ADD_FME_KEY_FIELD(ETH_TYPE,    PPE_FIELD_OF10_ETHER_TYPE, eth_type,
                       PPE_HEADER_ETHER);
 
     /**
-     * Special case handling for Arp packets. 
+     * Special case handling for Arp packets.
      *
-     * When a flowmod is specified with ethertype == ARP there is a 
-     * special interpretation of the source/dest/protocol fields in 
-     * the flowmod. 
+     * When a flowmod is specified with ethertype == ARP there is a
+     * special interpretation of the source/dest/protocol fields in
+     * the flowmod.
      *
      * For IPv4 ARP flows the following mapping should be performed:
      *    NW_PROTO -> ARP OPERATION
      *    NW_SRC -> ARP Source Protocol Address
-     *    NW_DST -> ARP Target Protocol Address. 
+     *    NW_DST -> ARP Target Protocol Address.
      *
      * This applies to ARP Protocol Type == 0x800 only, so an implicit
-     * qualification on this must also be added. 
+     * qualification on this must also be added.
      *
      * @fixme constants
      */
-    if (OF_MATCH_MASK_ETH_TYPE_ACTIVE_TEST(of_match) && 
+    if (OF_MATCH_MASK_ETH_TYPE_ACTIVE_TEST(of_match) &&
         of_match->fields.eth_type == 0x0806 &&
         of_match->masks.eth_type == 0xffff) {
 
-        ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_ARP_PTYPE, 
-                             0x0800); 
-        ppe_field_set_header(fme_key.masks,  PPE_FIELD_OF10_ARP_PTYPE, 
-                             0xFFFF); 
-        ADD_FME_KEY_FIELD(IPV4_SRC, PPE_FIELD_OF10_ARP_SPA, ipv4_src, 
-                          PPE_HEADER_ARP); 
-        ADD_FME_KEY_FIELD(IPV4_DST, PPE_FIELD_OF10_ARP_TPA, ipv4_dst, 
-                          PPE_HEADER_ARP); 
-        ADD_FME_KEY_FIELD(IP_PROTO, PPE_FIELD_OF10_ARP_OPERATION, ip_proto, 
-                          PPE_HEADER_ARP); 
-        
+        ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_ARP_PTYPE,
+                             0x0800);
+        ppe_field_set_header(fme_key.masks,  PPE_FIELD_OF10_ARP_PTYPE,
+                             0xFFFF);
+        ADD_FME_KEY_FIELD(IPV4_SRC, PPE_FIELD_OF10_ARP_SPA, ipv4_src,
+                          PPE_HEADER_ARP);
+        ADD_FME_KEY_FIELD(IPV4_DST, PPE_FIELD_OF10_ARP_TPA, ipv4_dst,
+                          PPE_HEADER_ARP);
+        ADD_FME_KEY_FIELD(IP_PROTO, PPE_FIELD_OF10_ARP_OPERATION, ip_proto,
+                          PPE_HEADER_ARP);
+
     }
-    
+
     /**
-     * Special case LLC/SNAP Processing. 
+     * Special case LLC/SNAP Processing.
      *
      * If the specified ethertype is 0x5FF, then match
-     * all Non-ethertype packets (LLC-only, or SNAP with OUI != 0). 
-     * 
-     * In this case we merely qualify the headermask with ETHERTYPE_MISSING. 
-     * 
+     * all Non-ethertype packets (LLC-only, or SNAP with OUI != 0).
+     *
+     * In this case we merely qualify the headermask with ETHERTYPE_MISSING.
+     *
      */
-    else if(OF_MATCH_MASK_ETH_TYPE_ACTIVE_TEST(of_match) && 
-            of_match->fields.eth_type == 0x5FF) { 
-        fme_key.keymask = (1<<PPE_HEADER_ETHERTYPE_MISSING); 
+    else if(OF_MATCH_MASK_ETH_TYPE_ACTIVE_TEST(of_match) &&
+            of_match->fields.eth_type == 0x5FF) {
+        fme_key.keymask = (1<<PPE_HEADER_ETHERTYPE_MISSING);
         ppe_field_set_header(fme_key.values, PPE_FIELD_OF10_ETHER_TYPE, 0);
         ppe_field_set_header(fme_key.masks, PPE_FIELD_OF10_ETHER_TYPE, 0);
     }
 
     /**
-     * Normal field mapping applies. 
+     * Normal field mapping applies.
      */
     else {
 
-        ADD_FME_KEY_FIELD(IP_DSCP,     PPE_FIELD_OF10_IP4_TOS,      ip_dscp, 
+        ADD_FME_KEY_FIELD(IP_DSCP,     PPE_FIELD_OF10_IP4_TOS,      ip_dscp,
                           PPE_HEADER_IP4);
-        ADD_FME_KEY_FIELD(IP_PROTO,    PPE_FIELD_OF10_IP4_PROTO,   ip_proto, 
+        ADD_FME_KEY_FIELD(IP_PROTO,    PPE_FIELD_OF10_IP4_PROTO,   ip_proto,
                           PPE_HEADER_IP4);
-        ADD_FME_KEY_FIELD(IPV4_SRC,    PPE_FIELD_OF10_IP4_SRC_ADDR, ipv4_src, 
+        ADD_FME_KEY_FIELD(IPV4_SRC,    PPE_FIELD_OF10_IP4_SRC_ADDR, ipv4_src,
                           PPE_HEADER_IP4);
-        ADD_FME_KEY_FIELD(IPV4_DST,    PPE_FIELD_OF10_IP4_DST_ADDR, ipv4_dst, 
+        ADD_FME_KEY_FIELD(IPV4_DST,    PPE_FIELD_OF10_IP4_DST_ADDR, ipv4_dst,
                           PPE_HEADER_IP4);
-        ADD_FME_KEY_FIELD(TCP_SRC,     PPE_FIELD_OF10_L4_SRC_PORT,  tcp_src, 
+        ADD_FME_KEY_FIELD(TCP_SRC,     PPE_FIELD_OF10_L4_SRC_PORT,  tcp_src,
                           PPE_HEADER_L4);
-        ADD_FME_KEY_FIELD(TCP_DST,     PPE_FIELD_OF10_L4_DST_PORT,  tcp_dst, 
+        ADD_FME_KEY_FIELD(TCP_DST,     PPE_FIELD_OF10_L4_DST_PORT,  tcp_dst,
                           PPE_HEADER_L4);
-        ADD_FME_KEY_FIELD(UDP_SRC,     PPE_FIELD_OF10_L4_SRC_PORT,  udp_src, 
+        ADD_FME_KEY_FIELD(UDP_SRC,     PPE_FIELD_OF10_L4_SRC_PORT,  udp_src,
                           PPE_HEADER_L4);
-        ADD_FME_KEY_FIELD(UDP_DST,     PPE_FIELD_OF10_L4_DST_PORT,  udp_dst, 
+        ADD_FME_KEY_FIELD(UDP_DST,     PPE_FIELD_OF10_L4_DST_PORT,  udp_dst,
                           PPE_HEADER_L4);
-        ADD_FME_KEY_FIELD(SCTP_SRC,    PPE_FIELD_OF10_L4_SRC_PORT,  sctp_src, 
+        ADD_FME_KEY_FIELD(SCTP_SRC,    PPE_FIELD_OF10_L4_SRC_PORT,  sctp_src,
                           PPE_HEADER_L4);
-        ADD_FME_KEY_FIELD(SCTP_DST,    PPE_FIELD_OF10_L4_DST_PORT,  sctp_dst, 
+        ADD_FME_KEY_FIELD(SCTP_DST,    PPE_FIELD_OF10_L4_DST_PORT,  sctp_dst,
                           PPE_HEADER_L4);
-        ADD_FME_KEY_FIELD(ICMPV4_TYPE, PPE_FIELD_OF10_ICMP_TYPE,    icmpv4_type, 
+        ADD_FME_KEY_FIELD(ICMPV4_TYPE, PPE_FIELD_OF10_ICMP_TYPE,    icmpv4_type,
                           PPE_HEADER_ICMP);
-        ADD_FME_KEY_FIELD(ICMPV4_CODE, PPE_FIELD_OF10_ICMP_CODE,    icmpv4_code, 
+        ADD_FME_KEY_FIELD(ICMPV4_CODE, PPE_FIELD_OF10_ICMP_CODE,    icmpv4_code,
                           PPE_HEADER_ICMP);
 
     }
@@ -502,26 +502,26 @@ indigo_fwd_flow_create(indigo_cookie_t flow_id,
         time(&now);
 
         of_flow_add_hard_timeout_get(flow_add, &tmout);
-        if (tmout != 0) { 
-            fme_entry->absolute_timeout = now + tmout; 
+        if (tmout != 0) {
+            fme_entry->absolute_timeout = now + tmout;
         }
         of_flow_add_idle_timeout_get(flow_add, &tmout);
-        if (tmout != 0) { 
-            fme_entry->relative_timeout = tmout; 
+        if (tmout != 0) {
+            fme_entry->relative_timeout = tmout;
         }
     }
 
-    fme_entry_key_set(fme_entry, &fme_key); 
+    fme_entry_key_set(fme_entry, &fme_key);
     if(FME_FAILURE(fme_add_entry(fme, fme_entry))) {
-        LOG_ERROR("fme_add_entry() failed"); 
-        result = INDIGO_ERROR_UNKNOWN; 
-        goto done; 
+        LOG_ERROR("fme_add_entry() failed");
+        result = INDIGO_ERROR_UNKNOWN;
+        goto done;
     }
 
     fme_flow_data->flow_id = flow_id;
 
     flow_id_dict_insert(fme_flow_data);
-    
+
     ++active_count;
 
 
@@ -597,8 +597,8 @@ indigo_fwd_flow_delete(indigo_cookie_t flow_id,
     flow_stats->bytes = fme_flow_data->cnt_bytes;
     flow_stats->flow_id = flow_id;
 
-    fme_remove_entry(fme, fme_flow_data->fme_entry); 
-    fme_entry_destroy(fme_flow_data->fme_entry); 
+    fme_remove_entry(fme, fme_flow_data->fme_entry);
+    fme_entry_destroy(fme_flow_data->fme_entry);
 
     /* @fixme Get duration from FME data? */
 
@@ -693,13 +693,13 @@ indigo_fwd_table_stats_get(of_table_stats_request_t *table_stats_request,
     of_table_stats_entry_active_count_set(of_table_stats_entry, active_count);
     of_table_stats_entry_lookup_count_set(of_table_stats_entry, lookup_count);
     of_table_stats_entry_matched_count_set(of_table_stats_entry, matched_count);
-    
+
     if (LOXI_FAILURE(of_list_table_stats_entry_append(of_list_table_stats_entry, of_table_stats_entry))) {
         LOG_ERROR("of_list_table_state_entry_append() failed");
         result = INDIGO_ERROR_UNKNOWN;
         goto done;
     }
-        
+
     if (LOXI_FAILURE(of_table_stats_reply_entries_set(table_stats_reply, of_list_table_stats_entry))) {
         LOG_ERROR("of_table_stats_reply_entries_set() failed");
         result = INDIGO_ERROR_UNKNOWN;
@@ -721,12 +721,12 @@ static indigo_error_t
 convert_to_dot1q(ppe_packet_t* ppep)
 {
     int rv;
-    ppe_header_t header; 
-    
-    ppe_packet_format_get(ppep, &header); 
+    ppe_header_t header;
+
+    ppe_packet_format_get(ppep, &header);
 
     if (header != PPE_HEADER_8021Q) {
-        rv = ppe_packet_format_set(ppep, PPE_HEADER_8021Q); 
+        rv = ppe_packet_format_set(ppep, PPE_HEADER_8021Q);
         if (PPE_FAILURE(rv)) {
             LOG_ERROR("Failed to convert pkt to .1q");
             return INDIGO_ERROR_UNKNOWN;
@@ -737,7 +737,7 @@ convert_to_dot1q(ppe_packet_t* ppep)
             return INDIGO_ERROR_UNKNOWN;
         }
     }
-    
+
     return INDIGO_ERROR_NONE;
 }
 
@@ -750,18 +750,18 @@ pkt_in(ppe_packet_t *ppep, unsigned reason)
     of_packet_in_t     *of_packet_in = 0;
     of_octets_t        of_octets[1];
     of_version_t version;
-    uint32_t in_port; 
+    uint32_t in_port;
 
     /* Since we don't know the version of the cxn, use configured version */
     version = my_config->of_version;
-    
-    ppe_field_get(ppep, PPE_FIELD_META_INGRESS_PORT, &in_port); 
 
-    if (!ind_port_packet_in_is_enabled(in_port)) { 
+    ppe_field_get(ppep, PPE_FIELD_META_INGRESS_PORT, &in_port);
+
+    if (!ind_port_packet_in_is_enabled(in_port)) {
         LOG_TRACE("Packet in not enabled");
         goto done;
     }
-  
+
     if ((of_packet_in = of_packet_in_new(version)) == 0) {
         LOG_ERROR("of_packet_in_new() failed");
         result = INDIGO_ERROR_UNKNOWN;
@@ -771,8 +771,8 @@ pkt_in(ppe_packet_t *ppep, unsigned reason)
     /** \todo Who sets buffer_id? */
 
     of_packet_in_total_len_set(of_packet_in, ppep->size);
-    of_packet_in_in_port_set(of_packet_in, 
-                             in_port); 
+    of_packet_in_in_port_set(of_packet_in,
+                             in_port);
     of_packet_in_reason_set(of_packet_in, reason);
     of_packet_in_buffer_id_set(of_packet_in, OF_BUFFER_ID_NO_BUFFER);
     of_octets->data  = ppep->data;
@@ -787,9 +787,9 @@ pkt_in(ppe_packet_t *ppep, unsigned reason)
     ind_fwd_packet_in_bytes += ppep->size;
 
     (void)indigo_core_packet_in(of_packet_in);
-  
+
     of_packet_in = 0;     /* No longer owned */
-  
+
  done:
     if (of_packet_in)  of_packet_in_delete(of_packet_in);
 
@@ -807,19 +807,19 @@ indigo_fwd_packet_receive(of_port_no_t of_port_num,
 
 static indigo_error_t
 pkt_action_do(of_port_no_t   in_port,
-              ppe_packet_t* ppep, 
+              ppe_packet_t* ppep,
               of_action_t    *of_action
               )
 {
     indigo_error_t result = INDIGO_ERROR_NONE;
     int rv;
-    uint32_t ingress_port; 
+    uint32_t ingress_port;
 
     /* @fixme check array ref */
-    LOG_TRACE("Processing action %s", 
+    LOG_TRACE("Processing action %s",
               of_object_id_str[of_action->header.object_id]);
 
-    ppe_field_get(ppep, PPE_FIELD_META_INGRESS_PORT, &ingress_port); 
+    ppe_field_get(ppep, PPE_FIELD_META_INGRESS_PORT, &ingress_port);
 
     switch (of_action->header.object_id) {
     case OF_ACTION_ENQUEUE:
@@ -870,7 +870,7 @@ pkt_action_do(of_port_no_t   in_port,
             case OF_PORT_DEST_FLOOD:
                 result = indigo_port_packet_emit_group(
                     OF_PORT_DEST_FLOOD,
-                    ingress_port, 
+                    ingress_port,
                     ppep->data,
                     ppep->size);
                 if (INDIGO_FAILURE(result)) {
@@ -879,7 +879,7 @@ pkt_action_do(of_port_no_t   in_port,
                 break;
             case OF_PORT_DEST_ALL:
                 result = indigo_port_packet_emit_all(
-                                                     ingress_port, 
+                                                     ingress_port,
                     ppep->data,
                                                      ppep->size);
                 if (INDIGO_FAILURE(result)) {
@@ -896,7 +896,7 @@ pkt_action_do(of_port_no_t   in_port,
                 }
                 break;
             case OF_PORT_DEST_IN_PORT:
-                of_port_num = ingress_port; 
+                of_port_num = ingress_port;
                 /* Fall through */
             default:
                 result = indigo_port_packet_emit(of_port_num,
@@ -950,8 +950,8 @@ pkt_action_do(of_port_no_t   in_port,
             uint32_t nw_dst;
             of_action_set_nw_dst_nw_addr_get(&of_action->set_nw_dst, &nw_dst);
 
-            if (PPE_FAILURE(ppe_field_set(ppep, 
-                                          PPE_FIELD_IP4_DST_ADDR, 
+            if (PPE_FAILURE(ppe_field_set(ppep,
+                                          PPE_FIELD_IP4_DST_ADDR,
                                           nw_dst
                                           )
                             )
@@ -959,11 +959,11 @@ pkt_action_do(of_port_no_t   in_port,
                 LOG_ERROR("ppe_field_set) failed for IP4_DST_ADDR");
                 result = INDIGO_ERROR_UNKNOWN;
             }
-            if (PPE_FAILURE(ppe_packet_update(ppep))) { 
+            if (PPE_FAILURE(ppe_packet_update(ppep))) {
                 LOG_ERROR("Packet Update for NW DST failed");
                 result = INDIGO_ERROR_UNKNOWN;
-            }  
-            LOG_ERROR("SET_NW_DST result=%d", result); 
+            }
+            LOG_ERROR("SET_NW_DST result=%d", result);
         }
         break;
     case OF_ACTION_SET_NW_SRC:
@@ -983,7 +983,7 @@ pkt_action_do(of_port_no_t   in_port,
             if (PPE_FAILURE(ppe_packet_update(ppep))) {
                 LOG_ERROR("Packet Update for NW SRC failed");
                 result = INDIGO_ERROR_UNKNOWN;
-            }            
+            }
         }
         break;
     case OF_ACTION_SET_NW_TOS:
@@ -1003,7 +1003,7 @@ pkt_action_do(of_port_no_t   in_port,
             if (PPE_FAILURE(ppe_packet_update(ppep))) {
                 LOG_ERROR("Packet Update for NW TOS failed");
                 result = INDIGO_ERROR_UNKNOWN;
-            }            
+            }
         }
         break;
     case OF_ACTION_SET_TP_DST:
@@ -1023,7 +1023,7 @@ pkt_action_do(of_port_no_t   in_port,
             if (PPE_FAILURE(ppe_packet_update(ppep))) {
                 LOG_ERROR("Packet Update for TP DST failed");
                 result = INDIGO_ERROR_UNKNOWN;
-            }            
+            }
         }
         break;
     case OF_ACTION_SET_TP_SRC:
@@ -1043,7 +1043,7 @@ pkt_action_do(of_port_no_t   in_port,
             if (PPE_FAILURE(ppe_packet_update(ppep))) {
                 LOG_ERROR("Packet Update for TP SRC failed");
                 result = INDIGO_ERROR_UNKNOWN;
-            }            
+            }
         }
         break;
     case OF_ACTION_SET_VLAN_PCP:
@@ -1082,7 +1082,7 @@ pkt_action_do(of_port_no_t   in_port,
         break;
     case OF_ACTION_STRIP_VLAN:
         LOG_TRACE("Strip VLAN tag action");
-        rv = ppe_packet_format_set(ppep, PPE_HEADER_ETHERII); 
+        rv = ppe_packet_format_set(ppep, PPE_HEADER_ETHERII);
         if (PPE_FAILURE(rv)) {
             LOG_ERROR("Failed to convert pkt to EtherII");
             result = INDIGO_ERROR_UNKNOWN;
@@ -1105,18 +1105,18 @@ pkt_action_do(of_port_no_t   in_port,
 static indigo_error_t
 ppe_pkt_setup(of_port_no_t   of_port_num,
               uint8_t        *data,
-              unsigned       len, 
+              unsigned       len,
               ppe_packet_t*  ppep)
 {
 
-    ppe_packet_init(ppep, data, len); 
-    
-    if(ppe_parse(ppep) < 0) { 
+    ppe_packet_init(ppep, data, len);
+
+    if(ppe_parse(ppep) < 0) {
         LOG_ERROR("ppe_parse() failed at setup");
         return (INDIGO_ERROR_UNKNOWN);
     }
-    
-    ppe_field_set(ppep, PPE_FIELD_META_INGRESS_PORT, of_port_num); 
+
+    ppe_field_set(ppep, PPE_FIELD_META_INGRESS_PORT, of_port_num);
 
     return (INDIGO_ERROR_NONE);
 }
@@ -1124,55 +1124,55 @@ ppe_pkt_setup(of_port_no_t   of_port_num,
 static indigo_error_t
 fme_key_setup(ppe_packet_t* ppep, fme_key_t* key)
 {
-    FME_MEMSET(key, 0, sizeof(*key)); 
-    key->size = ppe_field_info_table[PPE_FIELD_OF10_LAST].offset_bytes; 
-    key->dumper = fme_key_dump_pkey__; 
-    FME_MEMSET(key->values, 0, key->size); 
-    FME_MEMSET(key->masks, 0, key->size); 
+    FME_MEMSET(key, 0, sizeof(*key));
+    key->size = ppe_field_info_table[PPE_FIELD_OF10_LAST].offset_bytes;
+    key->dumper = fme_key_dump_pkey__;
+    FME_MEMSET(key->values, 0, key->size);
+    FME_MEMSET(key->masks, 0, key->size);
 
     /**
      *  Set the OpenFlow 1.0 header in the packet and
-     * copy the packet fields into the key. 
+     * copy the packet fields into the key.
      */
-    ppe_header_set(ppep, PPE_HEADER_OF10, key->values); 
-    
+    ppe_header_set(ppep, PPE_HEADER_OF10, key->values);
+
     /*
      * We use the header mask as the keymask for matches
      */
-    key->keymask = ppep->header_mask; 
-    
+    key->keymask = ppep->header_mask;
+
     /**
-     * Copy all relevent fields from the packet to the OF10 header, 
-     * which is currently storing our key. 
+     * Copy all relevent fields from the packet to the OF10 header,
+     * which is currently storing our key.
      *
-     * We don't bother checking whether the field exists or not -- 
-     * if it fails, it won't be in the header_mask to begin with, 
-     * and therefore not in the keymask, and won't be matched. 
+     * We don't bother checking whether the field exists or not --
+     * if it fails, it won't be in the header_mask to begin with,
+     * and therefore not in the keymask, and won't be matched.
      */
-    ppe_wide_field_copy(ppep, PPE_FIELD_OF10_ETHER_DST_MAC, 
-                        PPE_FIELD_ETHERNET_DST_MAC); 
-    ppe_wide_field_copy(ppep, PPE_FIELD_OF10_ETHER_SRC_MAC, 
-                        PPE_FIELD_ETHERNET_SRC_MAC); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ETHER_TYPE, 
-                   PPE_FIELD_ETHER_TYPE); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_TPID, PPE_FIELD_8021Q_TPID); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_PRI, PPE_FIELD_8021Q_PRI); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_CFI, PPE_FIELD_8021Q_CFI); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_VLAN, PPE_FIELD_8021Q_VLAN); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_DST_ADDR, PPE_FIELD_IP4_DST_ADDR); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_SRC_ADDR, PPE_FIELD_IP4_SRC_ADDR); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_L4_DST_PORT, PPE_FIELD_L4_DST_PORT); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_L4_SRC_PORT, PPE_FIELD_L4_SRC_PORT); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_PROTO, PPE_FIELD_IP4_PROTOCOL); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_TOS, PPE_FIELD_IP4_TOS); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ICMP_TYPE, PPE_FIELD_ICMP_TYPE); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ICMP_CODE, PPE_FIELD_ICMP_CODE); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_INGRESS_PORT, PPE_FIELD_META_INGRESS_PORT); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_PACKET_FORMAT, PPE_FIELD_META_PACKET_FORMAT); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_SPA, PPE_FIELD_ARP_SPA); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_TPA, PPE_FIELD_ARP_TPA); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_PTYPE, PPE_FIELD_ARP_PTYPE); 
-    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_OPERATION, PPE_FIELD_ARP_OPERATION); 
+    ppe_wide_field_copy(ppep, PPE_FIELD_OF10_ETHER_DST_MAC,
+                        PPE_FIELD_ETHERNET_DST_MAC);
+    ppe_wide_field_copy(ppep, PPE_FIELD_OF10_ETHER_SRC_MAC,
+                        PPE_FIELD_ETHERNET_SRC_MAC);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ETHER_TYPE,
+                   PPE_FIELD_ETHER_TYPE);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_TPID, PPE_FIELD_8021Q_TPID);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_PRI, PPE_FIELD_8021Q_PRI);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_CFI, PPE_FIELD_8021Q_CFI);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_VLAN, PPE_FIELD_8021Q_VLAN);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_DST_ADDR, PPE_FIELD_IP4_DST_ADDR);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_SRC_ADDR, PPE_FIELD_IP4_SRC_ADDR);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_L4_DST_PORT, PPE_FIELD_L4_DST_PORT);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_L4_SRC_PORT, PPE_FIELD_L4_SRC_PORT);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_PROTO, PPE_FIELD_IP4_PROTOCOL);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_IP4_TOS, PPE_FIELD_IP4_TOS);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ICMP_TYPE, PPE_FIELD_ICMP_TYPE);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ICMP_CODE, PPE_FIELD_ICMP_CODE);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_INGRESS_PORT, PPE_FIELD_META_INGRESS_PORT);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_PACKET_FORMAT, PPE_FIELD_META_PACKET_FORMAT);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_SPA, PPE_FIELD_ARP_SPA);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_TPA, PPE_FIELD_ARP_TPA);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_PTYPE, PPE_FIELD_ARP_PTYPE);
+    ppe_field_copy(ppep, PPE_FIELD_OF10_ARP_OPERATION, PPE_FIELD_ARP_OPERATION);
 
     /*
      * For OF 1.0 the ICMP type/code are in the L4 ports.
@@ -1183,8 +1183,8 @@ fme_key_setup(ppe_packet_t* ppep, fme_key_t* key)
         ppe_field_copy(ppep, PPE_FIELD_OF10_L4_SRC_PORT, PPE_FIELD_ICMP_TYPE);
         ppe_field_copy(ppep, PPE_FIELD_OF10_L4_DST_PORT, PPE_FIELD_ICMP_CODE);
     }
-    
-    return 0; 
+
+    return 0;
 }
 
 /** \brief Process a received packet */
@@ -1196,10 +1196,10 @@ indigo_fwd_packet_receive(of_port_no_t of_port_num,
                           )
 {
     indigo_error_t       result = INDIGO_ERROR_NONE;
-    ppe_packet_t         ppep; 
+    ppe_packet_t         ppep;
     int                  n, rv;
-    fme_entry_t*         match_entry; 
-    fme_key_t            fme_key; 
+    fme_entry_t*         match_entry;
+    fme_key_t            fme_key;
     struct fme_flow_data *fme_flow_data;
     of_list_action_t     *of_list_action;
     of_action_t          of_action[1];
@@ -1214,25 +1214,25 @@ indigo_fwd_packet_receive(of_port_no_t of_port_num,
         LOG_ERROR("ppe_pkt_setup() failed");
         return (INDIGO_ERROR_UNKNOWN);
     }
-    if (INDIGO_FAILURE(fme_key_setup(&ppep, &fme_key))) { 
-        LOG_ERROR("fme_key_setup() failed"); 
-        return (INDIGO_ERROR_UNKNOWN); 
+    if (INDIGO_FAILURE(fme_key_setup(&ppep, &fme_key))) {
+        LOG_ERROR("fme_key_setup() failed");
+        return (INDIGO_ERROR_UNKNOWN);
     }
 
     ++lookup_count;
 
     time(&now);
-    
-    if (FME_FAILURE(n = fme_match(fme, 
-                                  &fme_key, 
+
+    if (FME_FAILURE(n = fme_match(fme,
+                                  &fme_key,
                                   expiration_enabled ? now : 0,
-                                  ppep.size, 
-                                  &match_entry))) { 
-        LOG_ERROR("fme_match() failed."); 
+                                  ppep.size,
+                                  &match_entry))) {
+        LOG_ERROR("fme_match() failed.");
         return (INDIGO_ERROR_UNKNOWN);
     }
 
-    LOG_TRACE("FME returned %d for match on packet from %d", n, of_port_num); 
+    LOG_TRACE("FME returned %d for match on packet from %d", n, of_port_num);
     if (n == 0) {
         if (INDIGO_FAILURE(result = pkt_in(&ppep,
                                            OF_PACKET_IN_REASON_NO_MATCH
@@ -1246,17 +1246,17 @@ indigo_fwd_packet_receive(of_port_no_t of_port_num,
 
     ++matched_count;
 
-    fme_flow_data = (struct fme_flow_data *) (match_entry->cookie); 
+    fme_flow_data = (struct fme_flow_data *) (match_entry->cookie);
 
     /* Update flow stats */
 
     ++fme_flow_data->cnt_pkts;
     fme_flow_data->cnt_bytes += len;
-    
+
     /* Process actions given in flow that packet matched.
        \note The OF 1.0 spec says that in case of multiple matched flows of
        equal priority, the switch is free to choose which flow's actions will
-       be applied, so we just use the first match; 
+       be applied, so we just use the first match;
     */
 
     of_list_action = fme_flow_data->of_list_action;
@@ -1272,8 +1272,8 @@ indigo_fwd_packet_receive(of_port_no_t of_port_num,
             break;
         }
     }
-  
-    ppe_packet_denit(&ppep); 
+
+    ppe_packet_denit(&ppep);
     return (result);
 }
 
@@ -1288,7 +1288,7 @@ indigo_fwd_experimenter(of_experimenter_t *experimenter,
 {
     LOG_TRACE("Forwarding experimenter called");
 
-    return INDIGO_ERROR_NOT_SUPPORTED;    
+    return INDIGO_ERROR_NOT_SUPPORTED;
 }
 
 /** \brief Handle packet out request from Core */
@@ -1301,7 +1301,7 @@ indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
     of_list_action_t *of_list_action = 0;
     of_action_t      of_action[1];
     of_octets_t      of_octets[1];
-    ppe_packet_t     ppep; 
+    ppe_packet_t     ppep;
     int              rv;
 
     of_packet_out_in_port_get(of_packet_out, &of_port_num);
@@ -1311,7 +1311,7 @@ indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
                                      of_octets->data,
                                      of_octets->bytes,
                                      &ppep
-                                     )   
+                                     )
                        )
         ) {
         LOG_ERROR("ppe_pkt_setup() failed");
@@ -1347,8 +1347,8 @@ indigo_fwd_packet_out(of_packet_out_t *of_packet_out)
 
  done:
     if (of_list_action)  of_list_action_delete(of_list_action);
-  
-    ppe_packet_denit(&ppep); 
+
+    ppe_packet_denit(&ppep);
     return (result);
 }
 
@@ -1360,9 +1360,9 @@ ind_fwd_init(ind_fwd_config_t *config)
 {
     *my_config = *config;
 
-    if (FME_FAILURE(fme_create(&fme, 
+    if (FME_FAILURE(fme_create(&fme,
                               "flowman flow table",
-                               my_config->max_flows))) { 
+                               my_config->max_flows))) {
         LOG_ERROR("fme_create() failed");
         return (INDIGO_ERROR_UNKNOWN);
     }
@@ -1438,12 +1438,12 @@ ind_fwd_finish(void)
             if (p->of_list_action) {
                 of_list_action_delete(p->of_list_action);
             }
-            INDIGO_MEM_FREE(p); 
-        }       
-        biglist_free(bl); 
+            INDIGO_MEM_FREE(p);
+        }
+        biglist_free(bl);
     }
-    
-    fme_destroy_all(fme); 
+
+    fme_destroy_all(fme);
 
     init_done = 0;
 
@@ -1472,4 +1472,38 @@ indigo_fwd_group_delete(uint32_t id)
 void
 indigo_fwd_group_stats_get(uint32_t id, of_group_stats_entry_t *entry)
 {
+}
+
+#define INDIGO_PIPELINE_STANDARD_1_0 "standard-1.0"
+
+void
+indigo_fwd_pipeline_get(of_desc_str_t pipeline)
+{
+    strcpy(pipeline, INDIGO_PIPELINE_STANDARD_1_0);
+}
+
+indigo_error_t
+indigo_fwd_pipeline_set(of_desc_str_t pipeline)
+{
+    if(!strcmp(pipeline, INDIGO_PIPELINE_STANDARD_1_0)) {
+        return INDIGO_ERROR_NONE;
+    }
+    else {
+        return INDIGO_ERROR_NOT_SUPPORTED;
+    }
+}
+
+void
+indigo_fwd_pipeline_stats_get(of_desc_str_t **pipeline, int *num_pipelines)
+{
+    *num_pipelines = 0;
+}
+
+indigo_error_t
+indigo_fwd_flow_hit_status_get(indigo_cookie_t flow_id,
+                               bool *is_hit)
+{
+    AIM_LOG_WARN("indigo_fwd_flow_hit_status_get always returns 0.");
+    *is_hit = 0;
+    return INDIGO_ERROR_NONE;
 }
